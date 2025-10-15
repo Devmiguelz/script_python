@@ -6,77 +6,150 @@ import re
 from urllib.parse import urljoin, urlparse
 
 class CineCalidadSerieExtractor:
+
     def __init__(self):
         self.base_url = "https://cinecalidad.bar"
+        self.session = requests.Session()
         self.headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8',
+            'Accept-Encoding': 'gzip, deflate',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1'
         }
+
+    def cargar_series_json(self, archivo_json):
+        """Carga películas desde JSON"""
+        try:
+            with open(archivo_json, 'r', encoding='utf-8') as f:
+                peliculas = json.load(f)
+            print(f"✓ {len(peliculas)} películas cargadas desde {archivo_json}")
+            return peliculas
+        except FileNotFoundError:
+            print(f"❌ Error: No se encontró el archivo {archivo_json}")
+            return []
     
-    def extraer_datos_serie(self, url_serie, extraer_urls_finales=False):
+    def extraer_player_url_episodio(self, url_episodio_serie):
         """
-        Extrae todos los datos de una serie incluyendo episodios y enlaces
-        
-        Args:
-            url_serie (str): URL de la serie (ej: https://cinecalidad.bar/serie/andor-v4/)
-            extraer_urls_finales (bool): Si True, extrae las URLs finales de video (más lento)
-        
-        Returns:
-            dict: Diccionario con toda la información de la serie
+        Extrae la URL del iframe player desde la página de la película
         """
         try:
-            print(f"\n{'='*60}")
-            print(f"Extrayendo datos de: {url_serie}")
-            print(f"{'='*60}\n")
-            
-            response = requests.get(url_serie, headers=self.headers, timeout=15)
+            response = self.session.get(url_episodio_serie, headers=self.headers, timeout=15)
             response.raise_for_status()
             
             soup = BeautifulSoup(response.content, 'html.parser')
             
-            # Extraer información básica de la serie
-            serie_info = self._extraer_info_basica(soup)
+            # Buscar el iframe
+            iframe = soup.find('iframe')
+            if iframe and 'src' in iframe.attrs:
+                player_url = iframe['src']
+                print(f"  ✓ Player URL encontrada: {player_url}")
+                return player_url
+            else:
+                print("  ⚠️ No se encontró iframe")
+                return None
+                
+        except Exception as e:
+            print(f"  ❌ Error extrayendo player URL: {e}")
+            return None
+
+    def extraer_servidores_video(self, player_url, referer_url):
+        """
+        Accede al iframe del player y extrae los servidores de video disponibles
+        """
+        try:
+            # Headers específicos con referer
+            headers_player = self.headers.copy()
+            headers_player['Referer'] = referer_url
             
-            # Extraer temporadas y episodios
-            temporadas = self._extraer_temporadas_episodios(soup)
+            print(f"  → Accediendo al player...")
+            response = self.session.get(player_url, headers=headers_player, timeout=15)
+            response.raise_for_status()
             
-            # Extraer enlaces de cada episodio
-            print("\n🎬 Extrayendo enlaces de servidores de cada episodio...\n")
-            for temporada in temporadas:
-                for episodio in temporada['episodios']:
-                    print(f"  → Procesando: {episodio['titulo']}")
-                    enlaces = self._extraer_enlaces_episodio(episodio['url'])
+            soup = BeautifulSoup(response.content, 'html.parser')
+            
+            servidores = []
+            
+            # Buscar todos los botones de servidor (los <li> con onclick)
+            botones_servidor = soup.find_all('li', onclick=True)
+            
+            for boton in botones_servidor:
+                try:
+                    # Extraer el onclick
+                    onclick = boton.get('onclick', '')
                     
-                    # Opcionalmente extraer URLs finales
-                    if extraer_urls_finales and enlaces:
-                        print(f"      → Extrayendo URLs finales...")
-                        for servidor in enlaces:
-                            if servidor.get('url_redirect'):
-                                url_final = self.obtener_url_final_video(
-                                    servidor['url_redirect'],
-                                    episodio['url']
-                                )
-                                if url_final:
-                                    servidor['url_video_final'] = url_final
-                                time.sleep(0.5)
-                    
-                    episodio['servidores'] = enlaces
-                    time.sleep(1)  # Pausa entre peticiones
+                    # El onclick contiene: go_to_player('/r.php?id=...&hash=...')
+                    if 'go_to_player' in onclick:
+                        # Extraer la URL entre comillas
+                        import re
+                        match = re.search(r"go_to_player\('([^']+)'\)", onclick)
+                        if match:
+                            ruta_relativa = match.group(1)
+                            
+                            # Construir URL completa
+                            base_url = urlparse(player_url)
+                            url_completa = f"{base_url.scheme}://{base_url.netloc}{ruta_relativa}"
+                            
+                            # Extraer nombre del servidor
+                            span = boton.find('span')
+                            nombre_servidor = span.text.strip() if span else 'Desconocido'
+                            
+                            # Extraer descripción
+                            p = boton.find('p')
+                            descripcion = p.text.strip() if p else ''
+                            
+                            servidor_info = {
+                                'nombre': nombre_servidor,
+                                'descripcion': descripcion,
+                                'url_redirect': url_completa,
+                                'ruta_relativa': ruta_relativa
+                            }
+                            
+                            servidores.append(servidor_info)
+                            
+                except Exception as e:
+                    print(f"    Error extrayendo servidor: {e}")
+                    continue
             
-            # Construir el resultado final
-            resultado = {
-                **serie_info,
-                'temporadas': temporadas,
-                'url_serie': url_serie
-            }
-            
-            print(f"\n{'='*60}")
-            print(f"✓ Extracción completada exitosamente")
-            print(f"{'='*60}\n")
-            
-            return resultado
+            print(f"  ✓ {len(servidores)} servidores encontrados")
+            return servidores
             
         except Exception as e:
-            print(f"❌ Error al extraer datos de la serie: {e}")
+            print(f"  ❌ Error accediendo al player: {e}")
+            return []
+
+    def obtener_url_final_video(self, redirect_url, referer_url):
+        """
+        Sigue la redirección de /r.php para obtener la URL final del video
+        """
+        try:
+            headers_redirect = self.headers.copy()
+            headers_redirect['Referer'] = referer_url
+            
+            # Hacer petición pero NO seguir redirects automáticamente
+            response = self.session.get(
+                redirect_url, 
+                headers=headers_redirect, 
+                timeout=15,
+                allow_redirects=False
+            )
+            
+            # Si hay redirección (código 3xx)
+            if 300 <= response.status_code < 400:
+                url_final = response.headers.get('Location')
+                return url_final
+            
+            # Si no hay redirección, intentar extraer del HTML
+            soup = BeautifulSoup(response.content, 'html.parser')
+            iframe = soup.find('iframe')
+            if iframe and 'src' in iframe.attrs:
+                return iframe['src']
+            
+            return None
+            
+        except Exception as e:
+            print(f"    Error obteniendo URL final: {e}")
             return None
     
     def _extraer_info_basica(self, soup):
@@ -211,137 +284,125 @@ class CineCalidadSerieExtractor:
         """Extrae los enlaces de servidores de un episodio específico"""
         servidores = []
         
+        # 1. Extraer URL del player
+        player_url = self.extraer_player_url_episodio(url_episodio)
+        if not player_url:
+            return servidores
+                
+        servidores = self.extraer_servidores_video(player_url, url_episodio)
+                
+        return servidores
+    
+    def procesar_serie(self, serie, delay_entre_episodios=10):
+        """
+        Extrae todos los datos de una serie incluyendo episodios y enlaces
+        
+        Args:
+            url_serie (str): URL de la serie (ej: https://cinecalidad.bar/serie/andor-v4/)
+            extraer_urls_finales (bool): Si True, extrae las URLs finales de video (más lento)
+        
+        Returns:
+            dict: Diccionario con toda la información de la serie
+        """
         try:
-            response = requests.get(url_episodio, headers=self.headers, timeout=15)
+            url_serie = serie.get('enlace')
+            
+            print(f"\n{'='*60}")
+            print(f"Extrayendo datos de: {url_serie}")
+            print(f"{'='*60}\n")
+            
+            response = self.session.get(url_serie, headers=self.headers, timeout=15)
             response.raise_for_status()
             
             soup = BeautifulSoup(response.content, 'html.parser')
             
-            # Buscar el iframe del player
-            iframe = soup.find('iframe', class_='absolute')
+            # Extraer información básica de la serie
+            serie_info = self._extraer_info_basica(soup)
             
-            if iframe and 'src' in iframe.attrs:
-                player_url = iframe['src']
-                
-                # Acceder a la URL del player para obtener los servidores
-                # Pasamos la URL del episodio como referer
-                servidores = self._extraer_servidores_player(player_url, url_episodio)
+            # Extraer temporadas y episodios
+            temporadas = self._extraer_temporadas_episodios(soup)
             
-        except Exception as e:
-            print(f"    ⚠️  Error al extraer enlaces: {e}")
-        
-        return servidores
-    
-    def _extraer_servidores_player(self, player_url, referer_url):
-        """Extrae los servidores disponibles desde el player"""
-        servidores = []
-        
-        try:
-            # Headers específicos con referer para evitar 403
-            headers_player = self.headers.copy()
-            headers_player['Referer'] = referer_url
+            # Extraer enlaces de cada episodio
+            print("\n🎬 Extrayendo enlaces de servidores de cada episodio...\n")
+            for temporada in temporadas:
+                for episodio in temporada['episodios']:
+                    print(f"  → Procesando: {episodio['titulo']}")
+                    servidores = self._extraer_enlaces_episodio(episodio['url'])
+                    episodio['servidores'] = servidores
+                    time.sleep(delay_entre_episodios) 
             
-            time.sleep(0.5)  # Pausa pequeña
-            response = requests.get(player_url, headers=headers_player, timeout=15)
-            response.raise_for_status()
+            # Construir el resultado final
+            resultado = {
+                **serie_info,
+                'temporadas': temporadas,
+                'url_serie': url_serie
+            }
             
-            soup = BeautifulSoup(response.content, 'html.parser')
+            print(f"\n{'='*60}")
+            print(f"✓ Extracción completada exitosamente")
+            print(f"{'='*60}\n")
             
-            # Buscar los idiomas disponibles
-            idiomas = soup.find_all('li', onclick=lambda x: x and 'SelLang' in x)
-            
-            for idioma_li in idiomas:
-                onclick_text = idioma_li.get('onclick', '')
-                # Extraer el código de idioma (LAT, SUB, etc.)
-                match = re.search(r"'(\w+)'", onclick_text)
-                idioma_code = match.group(1) if match else 'UNKNOWN'
-                
-                # Buscar el contenedor de servidores para este idioma
-                clase_servidores = f"OD OD_{idioma_code}"
-                servidores_container = soup.find('div', class_=clase_servidores)
-                
-                if servidores_container:
-                    links = servidores_container.find_all('li', onclick=lambda x: x and 'go_to_player' in x)
-                    
-                    for link in links:
-                        servidor_img = link.find('img')
-                        servidor_span = link.find('span')
-                        servidor_p = link.find('p')
-                        
-                        onclick_attr = link.get('onclick', '')
-                        # Extraer la URL del onclick (ruta relativa)
-                        url_match = re.search(r"go_to_player\('([^']+)'\)", onclick_attr)
-                        ruta_relativa = url_match.group(1) if url_match else None
-                        
-                        # Construir URL completa para el redirect
-                        url_completa = None
-                        if ruta_relativa:
-                            base_url = urlparse(player_url)
-                            url_completa = f"{base_url.scheme}://{base_url.netloc}{ruta_relativa}"
-                        
-                        servidor_data = {
-                            'idioma': idioma_code,
-                            'nombre': servidor_span.text.strip() if servidor_span else None,
-                            'descripcion': servidor_p.text.strip() if servidor_p else None,
-                            'url_redirect': url_completa,
-                            'ruta_relativa': ruta_relativa,
-                            'logo': servidor_img['src'] if servidor_img else None
-                        }
-                        
-                        servidores.append(servidor_data)
-            
-            if servidores:
-                print(f"      ✓ {len(servidores)} servidores encontrados")
+            return resultado
             
         except Exception as e:
-            print(f"      ⚠️  Error al extraer servidores del player: {e}")
-        
-        return servidores
-    
-    def obtener_url_final_video(self, redirect_url, referer_url):
-        """
-        Sigue la redirección de /r.php para obtener la URL final del video
-        (Opcional - puede ser lento)
-        """
-        try:
-            headers_redirect = self.headers.copy()
-            headers_redirect['Referer'] = referer_url
-            
-            # Hacer petición pero NO seguir redirects automáticamente
-            response = requests.get(
-                redirect_url, 
-                headers=headers_redirect, 
-                timeout=15,
-                allow_redirects=False
-            )
-            
-            # Si hay redirección (código 3xx)
-            if 300 <= response.status_code < 400:
-                url_final = response.headers.get('Location')
-                return url_final
-            
-            # Si no hay redirección, intentar extraer del HTML
-            soup = BeautifulSoup(response.content, 'html.parser')
-            iframe = soup.find('iframe')
-            if iframe and 'src' in iframe.attrs:
-                return iframe['src']
-            
+            print(f"❌ Error al extraer datos de la serie: {e}")
             return None
+
+    def procesar_series(self, archivo_json, limite=None, delay=10):
+        """
+        Procesa múltiples películas
+        """
+        series = self.cargar_series_json(archivo_json)
+        
+        if not series:
+            return []
+        
+        if limite:
+            series = series[:limite]
+        
+        resultados = []
+        total = len(series)
+        
+        print(f"\n{'='*80}")
+        print(f"Procesando {total} películas...")
+        print('='*80)
+        
+        for i, serie in enumerate(series, 1):
+            print(f"\n[{i}/{total}] {serie.get('titulo', 'Sin título')}")
             
-        except Exception as e:
-            print(f"      ⚠️  Error obteniendo URL final: {e}")
-            return None
-    
-    def guardar_json(self, datos, nombre_archivo='serie_completa.json'):
-        """Guarda los datos extraídos en un archivo JSON"""
-        try:
-            with open(nombre_archivo, 'w', encoding='utf-8') as f:
-                json.dump(datos, f, ensure_ascii=False, indent=2)
-            print(f"\n💾 Datos guardados en: {nombre_archivo}")
-            return True
-        except Exception as e:
-            print(f"❌ Error al guardar JSON: {e}")
-            return False
+            resultado = self.procesar_serie(serie)
+            
+            if resultado:
+                # Mostrar servidores encontrados
+                if resultado.get('servidores'):
+                    for servidor in resultado['servidores']:
+                        print(f"    ✓ {servidor['nombre']} - {servidor['descripcion']}")
+                else:
+                    print("    ⚠️ No se encontraron servidores")
+                
+                resultados.append(resultado)
+            
+            # Pausa entre películas
+            if i < total:
+                time.sleep(delay)
+        
+        return resultados
+
+    def guardar_resultados(self, resultados, prefijo='serie_servidores'):
+        """
+        Guarda resultados únicamente en un archivo JSON
+        """
+        if not resultados:
+            print("No hay resultados para guardar")
+            return
+
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        archivo_json = f'{prefijo}_{timestamp}.json'
+
+        with open(archivo_json, 'w', encoding='utf-8') as f:
+            json.dump(resultados, f, ensure_ascii=False, indent=2)
+
+        print(f"\n✓ JSON guardado: {archivo_json}")
 
 
 # Ejemplo de uso
@@ -351,72 +412,45 @@ if __name__ == "__main__":
     print("🎬 EXTRACTOR DE SERIES - CINECALIDAD")
     print("="*80)
     
-    # URL de la serie a extraer
-    url_serie = "https://cinecalidad.bar/serie/la-nueva-brigada/"
+    # Solicitar archivo JSON
+    archivo_json = input("\nArchivo JSON de películas (default: series_pagina_1.json): ").strip()
+    if not archivo_json:
+        archivo_json = "series_pagina_1.json"
     
-    # Preguntar si quiere extraer URLs finales
-    print("\n¿Desea extraer las URLs finales de video?")
-    print("  Nota: Esto hará el proceso MÁS LENTO pero obtendrá las URLs directas")
-    print("  1. No - Solo enlaces de servidores (Rápido)")
-    print("  2. Sí - Incluir URLs finales de video (Lento)")
+    # Preguntar cuántas procesar
+    print("\n¿Cuántas películas procesar?")
+    print("  1. Solo 3 (prueba rápida)")
+    print("  2. 10 películas")
+    print("  3. 25 películas")
+    print("  4. Todas")
     
-    opcion = input("\nOpción (1-2): ").strip()
-    extraer_urls_finales = (opcion == '2')
+    opcion = input("\nOpción (1-4): ").strip()
+    limite_map = {'1': 3, '2': 10, '3': 25, '4': None}
+    limite = limite_map.get(opcion, 3)
     
-    if extraer_urls_finales:
-        print("\n⚙️ Modo: Extracción completa con URLs finales")
+    if limite:
+        print(f"\n⚙️ Procesando {limite} películas...")
     else:
-        print("\n⚙️ Modo: Extracción rápida (solo servidores)")
+        print("\n⚙️ Procesando TODAS las películas (esto puede tardar)...")
     
-    # Extraer todos los datos
-    datos_serie = extractor.extraer_datos_serie(url_serie, extraer_urls_finales)
-    
-    if datos_serie:
-        # Guardar en JSON
-        extractor.guardar_json(datos_serie, 'andor_completo.json')
+    # Procesar
+    resultados = extractor.procesar_series(
+        archivo_json=archivo_json,
+        limite=limite,
+        delay=5  
+    )
+    if resultados:
+        print(f"\n{'='*80}")
+        print(f"✅ Completado: {len(resultados)} series procesadas")
+        print('='*80)
         
-        # Mostrar resumen
-        print("\n" + "="*60)
-        print("RESUMEN DE EXTRACCIÓN")
-        print("="*60)
-        print(f"Título: {datos_serie.get('titulo')}")
-        print(f"Temporadas: {len(datos_serie.get('temporadas', []))}")
+        # Estadísticas
+        total_servidores = sum(len(p.get('servidores', [])) for p in resultados)
+        print(f"\n📊 ESTADÍSTICAS:")
+        print(f"  - Total servidores encontrados: {total_servidores}")
+        print(f"  - Promedio por serie: {total_servidores/len(resultados):.1f}")
         
-        total_episodios = sum(len(t['episodios']) for t in datos_serie.get('temporadas', []))
-        print(f"Total episodios: {total_episodios}")
-        
-        total_servidores = sum(
-            len(ep['servidores']) 
-            for t in datos_serie.get('temporadas', []) 
-            for ep in t['episodios']
-        )
-        print(f"Total enlaces de servidores: {total_servidores}")
-        
-        if extraer_urls_finales:
-            urls_finales = sum(
-                1 for t in datos_serie.get('temporadas', []) 
-                for ep in t['episodios']
-                for srv in ep['servidores']
-                if srv.get('url_video_final')
-            )
-            print(f"URLs finales obtenidas: {urls_finales}")
-        
-        print("="*60)
-        
-        # Mostrar ejemplo de estructura
-        print("\n📋 Ejemplo de datos extraídos:")
-        print("-" * 60)
-        if datos_serie.get('temporadas'):
-            temp = datos_serie['temporadas'][0]
-            print(f"\n{temp['nombre']}:")
-            if temp['episodios']:
-                ep = temp['episodios'][0]
-                print(f"  {ep['titulo']}")
-                print(f"  Estado: {ep['estado']}")
-                print(f"  Servidores disponibles: {len(ep['servidores'])}")
-                if ep['servidores']:
-                    for i, srv in enumerate(ep['servidores'][:3], 1):
-                        print(f"    {i}. {srv['nombre']} ({srv['idioma']}) - {srv['descripcion']}")
-                        if srv.get('url_video_final'):
-                            print(f"       URL final: {srv['url_video_final'][:60]}...")
-        print("-" * 60)
+        # Guardar
+        extractor.guardar_resultados(resultados)
+    else:
+        print("\n❌ No se procesó ninguna película")

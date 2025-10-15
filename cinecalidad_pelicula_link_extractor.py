@@ -29,17 +29,11 @@ class AdvancedLinksExtractor:
             print(f"❌ Error: No se encontró el archivo {archivo_json}")
             return []
     
-    def extraer_player_url(self, url_pelicula):
+    def extraer_player_url(self, soup):
         """
         Extrae la URL del iframe player desde la página de la película
         """
-        try:
-            response = self.session.get(url_pelicula, headers=self.headers, timeout=15)
-            response.raise_for_status()
-            
-            soup = BeautifulSoup(response.content, 'html.parser')
-            
-            # Buscar el iframe
+        try:                        
             iframe = soup.find('iframe')
             if iframe and 'src' in iframe.attrs:
                 player_url = iframe['src']
@@ -151,6 +145,78 @@ class AdvancedLinksExtractor:
             print(f"    Error obteniendo URL final: {e}")
             return None
     
+    def _extraer_info_pelicula(self, soup):
+        """Extrae la información básica de una película"""
+        info = {}
+
+        try:
+            # 🎬 Título
+            titulo_tag = soup.find('h1', class_='mb-2')
+            info['titulo'] = titulo_tag.text.strip() if titulo_tag else None
+
+            # 🖼️ Imagen principal
+            img_tag = soup.find('figure', class_='md:col-span-2')
+            if img_tag:
+                img = img_tag.find('img')
+                info['imagen'] = img['src'] if img else None
+            else:
+                info['imagen'] = None
+
+            # 🎞️ Trailer (YouTube)
+            trailer_iframe = soup.find('iframe', id='videoPlayer')
+            info['trailer'] = trailer_iframe['src'] if trailer_iframe and trailer_iframe.get('src') else None
+
+            # 📝 Descripción
+            desc_container = soup.find('div', class_='capturar')
+            if desc_container:
+                desc_p = desc_container.find('p')
+                info['descripcion'] = desc_p.text.strip() if desc_p else None
+            else:
+                info['descripcion'] = None
+
+            # 📋 Detalles adicionales
+            movie_details = soup.find('div', class_='movie-details')
+            if movie_details:
+                filas = movie_details.find_all('tr')
+                for fila in filas:
+                    th = fila.find('th')
+                    td = fila.find('td')
+
+                    if not th or not td:
+                        continue
+
+                    etiqueta = th.text.strip().lower()
+                    valor = td.text.strip()
+
+                    # Mapeamos los posibles campos
+                    if 'título original' in etiqueta:
+                        info['titulo_original'] = valor
+
+                    elif 'duración' in etiqueta:
+                        info['duracion'] = valor
+
+                    elif 'rating' in etiqueta:
+                        info['rating'] = valor
+
+                    elif 'géneros' in etiqueta:
+                        generos_links = td.find_all('a')
+                        info['generos'] = [g.text.strip() for g in generos_links] if generos_links else [valor]
+
+                    elif 'director' in etiqueta:
+                        directores = td.find_all('span', class_='por')
+                        info['director'] = [d.text.strip() for d in directores] if directores else [valor]
+
+                    elif 'actores' in etiqueta:
+                        actores = td.find_all('span', class_='por')
+                        info['actores'] = [a.text.strip() for a in actores] if actores else [valor]
+
+            print(f"✓ Información básica extraída: {info.get('titulo', 'Sin título')}")
+
+        except Exception as e:
+            print(f"❌ Error al extraer información básica de película: {e}")
+
+        return info
+
     def procesar_pelicula(self, pelicula):
         """
         Procesa una película completa: extrae player y todos los servidores
@@ -162,39 +228,34 @@ class AdvancedLinksExtractor:
             print(f"  ⚠️ {titulo}: No tiene URL")
             return None
         
+        response = self.session.get(url_pelicula, headers=self.headers, timeout=15)
+        response.raise_for_status()
+            
+        soup = BeautifulSoup(response.content, 'html.parser')
+
+        # 1. Extraer info básica
+        info_basica = self._extraer_info_pelicula(soup)
+        
         resultado = {
-            'titulo': titulo,
-            'año': pelicula.get('año'),
-            'calidad': pelicula.get('calidad'),
-            'generos': pelicula.get('generos'),
-            'url_pelicula': url_pelicula,
+            **info_basica,
             'servidores': []
         }
         
-        # 1. Extraer URL del player
-        player_url = self.extraer_player_url(url_pelicula)
+        # 2. Extraer URL del player
+        player_url = self.extraer_player_url(soup)
         if not player_url:
             return resultado
         
         resultado['player_url'] = player_url
         
-        # 2. Extraer servidores del player
+        # 3. Extraer servidores del player
         servidores = self.extraer_servidores_video(player_url, url_pelicula)
-        
-        # 3. Opcionalmente, obtener URLs finales (esto puede ser lento)
-        # for servidor in servidores:
-        #     url_final = self.obtener_url_final_video(
-        #         servidor['url_redirect'], 
-        #         player_url
-        #     )
-        #     if url_final:
-        #         servidor['url_video_final'] = url_final
-        
+                
         resultado['servidores'] = servidores
         
         return resultado
     
-    def procesar_peliculas(self, archivo_json, limite=None, delay=3):
+    def procesar_peliculas(self, archivo_json, limite=None, delay=10):
         """
         Procesa múltiples películas
         """
@@ -283,7 +344,7 @@ if __name__ == "__main__":
     resultados = extractor.procesar_peliculas(
         archivo_json=archivo_json,
         limite=limite,
-        delay=3  # 3 segundos entre películas
+        delay=5
     )
     
     if resultados:
