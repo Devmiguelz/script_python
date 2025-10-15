@@ -88,26 +88,28 @@ class CinecalidadScraper:
             print(f"Error al hacer scraping: {e}")
             return []
     
-    def extraer_multiples_paginas(self, num_paginas=3):
+    def extraer_multiples_paginas(self, num_paginas=3, tipo='pelicula'):
         """
-        Extrae películas de múltiples páginas
+        Extrae películas o series de múltiples páginas
+        tipo: 'pelicula' o 'serie'
         """
-        todas_peliculas = []
+        todos_items = []
+        tipo_texto = 'series' if tipo == 'serie' else 'películas'
         
         for pagina in range(1, num_paginas + 1):
             print(f"\n{'='*60}")
-            print(f"Página {pagina} de {num_paginas}")
+            print(f"Página {pagina} de {num_paginas} - {tipo_texto}")
             print('='*60)
             
-            peliculas = self.extraer_peliculas(pagina=pagina)
-            todas_peliculas.extend(peliculas)
+            items = self.extraer_peliculas(pagina=pagina, tipo=tipo)
+            todos_items.extend(items)
             
             # Pausa entre páginas para ser respetuoso
             if pagina < num_paginas:
                 time.sleep(2)
         
-        return todas_peliculas
-
+        return todos_items
+    
     def guardar_json(self, datos, archivo='peliculas_cinecalidad.json'):
         """
         Guarda los datos en un archivo JSON
@@ -123,19 +125,26 @@ class CinecalidadScraper:
     
     def mostrar_peliculas(self, datos, limite=5):
         """
-        Muestra las películas extraídas en la consola
+        Muestra las películas o series extraídas en la consola
         """
         print(f"\n{'='*80}")
-        print(f"PELÍCULAS ENCONTRADAS (Mostrando {min(limite, len(datos))} de {len(datos)})")
+        print(f"ITEMS ENCONTRADOS (Mostrando {min(limite, len(datos))} de {len(datos)})")
         print('='*80)
         
-        for i, pelicula in enumerate(datos[:limite], 1):
-            print(f"\n{i}. {pelicula['titulo']}")
-            print(f"   Año: {pelicula['año']} | Calidad: {pelicula['calidad']}")
-            print(f"   Géneros: {pelicula['generos']}")
-            print(f"   URL: {pelicula['enlace']}")
-            if pelicula['descripcion']:
-                desc = pelicula['descripcion'][:100] + "..." if len(pelicula['descripcion']) > 100 else pelicula['descripcion']
+        for i, item in enumerate(datos[:limite], 1):
+            tipo_emoji = "📺" if item.get('tipo') == 'serie' else "🎬"
+            print(f"\n{i}. {tipo_emoji} {item['titulo']}")
+            
+            if item.get('tipo') == 'serie':
+                print(f"   {item.get('temporadas', 'N/A')} | {item.get('episodios', 'N/A')}")
+            else:
+                print(f"   Año: {item['año']} | Calidad: {item['calidad']}")
+            
+            print(f"   Géneros: {', '.join(item['generos']) if item['generos'] else 'N/A'}")
+            print(f"   URL: {item['enlace']}")
+            
+            if item['descripcion']:
+                desc = item['descripcion'][:100] + "..." if len(item['descripcion']) > 100 else item['descripcion']
                 print(f"   Descripción: {desc}")
 
 # Ejemplo de uso
