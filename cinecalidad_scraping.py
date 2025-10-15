@@ -332,7 +332,7 @@ if __name__ == "__main__":
     # --- MODO UNA SOLA PÁGINA ---
     else:
         print(f"\n📄 Extrayendo {tipo_texto}s de la primera página...")
-        resultados = scraper.extraer_peliculas(pagina=1)
+        resultados = scraper.extraer_multiples_paginas(num_paginas=1, tipo=tipo_texto)
         scraper.mostrar_peliculas(resultados, limite=10)
         archivo = f"{tipo_texto}s_pagina_1.json"
         scraper.guardar_json(resultados, archivo)
