@@ -293,7 +293,7 @@ class CineCalidadSerieExtractor:
                 
         return servidores
     
-    def procesar_serie(self, serie, delay_entre_episodios=10):
+    def procesar_serie(self, serie, delay_entre_episodios=5):
         """
         Extrae todos los datos de una serie incluyendo episodios y enlaces
         
@@ -348,7 +348,7 @@ class CineCalidadSerieExtractor:
             print(f"❌ Error al extraer datos de la serie: {e}")
             return None
 
-    def procesar_series(self, archivo_json, limite=None, delay=10):
+    def procesar_series(self, archivo_json, limite=None, delay=5):
         """
         Procesa múltiples películas
         """
@@ -373,13 +373,6 @@ class CineCalidadSerieExtractor:
             resultado = self.procesar_serie(serie)
             
             if resultado:
-                # Mostrar servidores encontrados
-                if resultado.get('servidores'):
-                    for servidor in resultado['servidores']:
-                        print(f"    ✓ {servidor['nombre']} - {servidor['descripcion']}")
-                else:
-                    print("    ⚠️ No se encontraron servidores")
-                
                 resultados.append(resultado)
             
             # Pausa entre películas
@@ -443,12 +436,6 @@ if __name__ == "__main__":
         print(f"\n{'='*80}")
         print(f"✅ Completado: {len(resultados)} series procesadas")
         print('='*80)
-        
-        # Estadísticas
-        total_servidores = sum(len(p.get('servidores', [])) for p in resultados)
-        print(f"\n📊 ESTADÍSTICAS:")
-        print(f"  - Total servidores encontrados: {total_servidores}")
-        print(f"  - Promedio por serie: {total_servidores/len(resultados):.1f}")
         
         # Guardar
         extractor.guardar_resultados(resultados)
