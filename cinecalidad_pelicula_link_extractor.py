@@ -236,80 +236,20 @@ class AdvancedLinksExtractor:
     
     def guardar_resultados(self, resultados, prefijo='peliculas_servidores'):
         """
-        Guarda resultados en JSON y CSV
+        Guarda resultados únicamente en un archivo JSON
         """
         if not resultados:
             print("No hay resultados para guardar")
             return
-        
+
         timestamp = time.strftime("%Y%m%d_%H%M%S")
-        
-        # Guardar JSON completo
         archivo_json = f'{prefijo}_{timestamp}.json'
+
         with open(archivo_json, 'w', encoding='utf-8') as f:
             json.dump(resultados, f, ensure_ascii=False, indent=2)
+
         print(f"\n✓ JSON guardado: {archivo_json}")
-        
-        # Guardar CSV con servidores
-        archivo_csv = f'{prefijo}_{timestamp}.csv'
-        datos_csv = []
-        
-        for pelicula in resultados:
-            base = {
-                'titulo': pelicula.get('titulo'),
-                'año': pelicula.get('año'),
-                'calidad': pelicula.get('calidad'),
-                'generos': pelicula.get('generos'),
-                'url_pelicula': pelicula.get('url_pelicula'),
-                'player_url': pelicula.get('player_url')
-            }
-            
-            if pelicula.get('servidores'):
-                for servidor in pelicula['servidores']:
-                    fila = base.copy()
-                    fila['servidor_nombre'] = servidor.get('nombre')
-                    fila['servidor_descripcion'] = servidor.get('descripcion')
-                    fila['servidor_url'] = servidor.get('url_redirect')
-                    fila['url_video_final'] = servidor.get('url_video_final', 'N/A')
-                    datos_csv.append(fila)
-            else:
-                datos_csv.append(base)
-        
-        if datos_csv:
-            with open(archivo_csv, 'w', newline='', encoding='utf-8') as f:
-                writer = csv.DictWriter(f, fieldnames=datos_csv[0].keys())
-                writer.writeheader()
-                writer.writerows(datos_csv)
-            print(f"✓ CSV guardado: {archivo_csv}")
-        
-        # Guardar resumen legible
-        archivo_txt = f'{prefijo}_{timestamp}.txt'
-        with open(archivo_txt, 'w', encoding='utf-8') as f:
-            f.write("=" * 80 + "\n")
-            f.write("SERVIDORES DE VIDEO EXTRAÍDOS\n")
-            f.write("=" * 80 + "\n\n")
-            
-            for pelicula in resultados:
-                f.write(f"\n{'='*60}\n")
-                f.write(f"PELÍCULA: {pelicula.get('titulo')}\n")
-                f.write(f"Año: {pelicula.get('año')} | Calidad: {pelicula.get('calidad')}\n")
-                f.write(f"URL: {pelicula.get('url_pelicula')}\n")
-                f.write(f"Player: {pelicula.get('player_url', 'N/A')}\n")
-                f.write(f"{'='*60}\n\n")
-                
-                if pelicula.get('servidores'):
-                    f.write("SERVIDORES DISPONIBLES:\n\n")
-                    for idx, servidor in enumerate(pelicula['servidores'], 1):
-                        f.write(f"{idx}. {servidor['nombre']}\n")
-                        f.write(f"   Descripción: {servidor['descripcion']}\n")
-                        f.write(f"   URL: {servidor['url_redirect']}\n")
-                        if servidor.get('url_video_final'):
-                            f.write(f"   Video final: {servidor['url_video_final']}\n")
-                        f.write("\n")
-                else:
-                    f.write("No se encontraron servidores\n\n")
-        
-        print(f"✓ Resumen TXT guardado: {archivo_txt}")
+
 
 # Ejemplo de uso
 if __name__ == "__main__":
@@ -319,9 +259,9 @@ if __name__ == "__main__":
     print("="*80)
     
     # Solicitar archivo JSON
-    archivo_json = input("\nArchivo JSON de películas (default: peliculas_cinecalidad.json): ").strip()
+    archivo_json = input("\nArchivo JSON de películas (default: peliculas_pagina_1.json): ").strip()
     if not archivo_json:
-        archivo_json = "peliculas_cinecalidad.json"
+        archivo_json = "peliculas_pagina_1.json"
     
     # Preguntar cuántas procesar
     print("\n¿Cuántas películas procesar?")

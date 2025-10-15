@@ -303,7 +303,7 @@ if __name__ == "__main__":
         print("⚠️ Opción inválida. Se usará 'película' por defecto.")
         tipo = 'p'
 
-    tipo_texto = "serie" if tipo == 's' else "película"
+    tipo_texto = "serie" if tipo == 's' else "pelicula"
     print(f"\n📂 Tipo de contenido seleccionado: {tipo_texto.upper()}")
 
     total_paginas = scraper.obtener_numero_paginas(tipo=tipo_texto)
