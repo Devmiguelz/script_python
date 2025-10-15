@@ -59,7 +59,7 @@ class CinecalidadScraper:
                     descripcion = desc_tag.text.strip() if desc_tag else None
                     
                     # Extraer géneros
-                    generos_container = pelicula.find('p', class_='absolute bottom-0')
+                    generos_container = pelicula.find('p', class_=['absolute', 'bottom-0'])
                     generos = []
                     if generos_container:
                         generos_links = generos_container.find_all('a')
@@ -72,7 +72,7 @@ class CinecalidadScraper:
                         'calidad': calidad,
                         'año': año,
                         'descripcion': descripcion,
-                        'generos': ', '.join(generos) if generos else None
+                        'generos': generos if generos else []
                     }
                     
                     datos_peliculas.append(pelicula_data)

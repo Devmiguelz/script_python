@@ -6,7 +6,10 @@
     "calidad": "HD",
     "año": "2025",
     "descripcion": "En un intenso día, el dedicado director de una escuela orientada a la rehabilitación lucha por mantener a raya a sus alumnos, mientras carga con el peso de sus propios problemas.",
-    "generos": null
+    "generos": [
+      "Comedia",
+      "Drama"
+    ]
   },
   {
     "titulo": "Días Perfectos",
@@ -15,7 +18,9 @@
     "calidad": "HD",
     "año": "2023",
     "descripcion": "Hirayama está contento con su vida como limpiador de baños en Tokio. Fuera de su rutina estructurada, le encanta la música en cintas de casete, los libros y tomar fotografías de árboles. A través de...",
-    "generos": null
+    "generos": [
+      "Drama"
+    ]
   },
   {
     "titulo": "Juego sucio",
@@ -24,7 +29,9 @@
     "calidad": "HD",
     "año": "2025",
     "descripcion": "Parker es un experto ladrón, muy profesional en lo suyo, que elabora sus golpes con una ética de trabajo clara y directa. Junto con Grofield, Zen y un equipo experto, todos se toparán con un...",
-    "generos": null
+    "generos": [
+      "Crimen"
+    ]
   },
   {
     "titulo": "A través del fuego",
@@ -33,7 +40,11 @@
     "calidad": "HD",
     "año": "2025",
     "descripcion": "Un padre perseverante lo arriesga todo para rescatar a una maestra entregada y a sus estudiantes de un incendio peligroso.",
-    "generos": null
+    "generos": [
+      "Drama",
+      "Misterio",
+      "Suspense"
+    ]
   },
   {
     "titulo": "La Máquina: The Smashing Machine",
@@ -42,7 +53,10 @@
     "calidad": "HD",
     "año": "2025",
     "descripcion": "La historia del campeón de artes marciales mixtas y de la UFC, Mark Kerr.",
-    "generos": null
+    "generos": [
+      "Drama",
+      "Historia"
+    ]
   },
   {
     "titulo": "Los Extraños: Capítulo 2",
@@ -51,7 +65,11 @@
     "calidad": "CAM",
     "año": "2025",
     "descripcion": "Después de descubrir que una de sus víctimas, Maya, sigue con vida, tres maníacos enmascarados regresan para terminar el trabajo. Sin un lugar donde esconderse y sin nadie en quien confiar, Maya pronto se ve...",
-    "generos": null
+    "generos": [
+      "Estrenos",
+      "Suspense",
+      "Terror"
+    ]
   },
   {
     "titulo": "HIM: El elegido",
@@ -60,7 +78,10 @@
     "calidad": "HD",
     "año": "2025",
     "descripcion": "Cuando la carrera de Cameron Cade llegaba a su fin por culpa de un traumatismo craneoencefálico, recibe la invitación de su héroe Isaiah White, el legendario mariscal de campo y megaestrella cultural, para vivir en...",
-    "generos": null
+    "generos": [
+      "Misterio",
+      "Terror"
+    ]
   },
   {
     "titulo": "Mantis",
@@ -69,7 +90,11 @@
     "calidad": "HD",
     "año": "2025",
     "descripcion": "La sociedad secreta de asesinos a sueldo se sume en el caos y surge una nueva generación de asesinos. Sin las viejas reglas, ¿quién se atreverá a reclamar las sombras?",
-    "generos": null
+    "generos": [
+      "Acción",
+      "Crimen",
+      "Suspense"
+    ]
   },
   {
     "titulo": "Primitive War",
@@ -78,7 +103,11 @@
     "calidad": "HD",
     "año": "2025",
     "descripcion": "Vietnam. 1968. Una unidad de reconocimiento conocida como Escuadrón Buitre es enviada a un valle aislado de la jungla para descubrir el destino de un pelotón de Boina Verde desaparecido. Pronto descubren que no están...",
-    "generos": null
+    "generos": [
+      "Acción",
+      "Bélica",
+      "Terror"
+    ]
   },
   {
     "titulo": "Un paseo con Madeleine",
@@ -87,7 +116,10 @@
     "calidad": "HD",
     "año": "2022",
     "descripcion": "Madeleine abandona su hogar para ingresar en una residencia de ancianos, al otro lado de París. Un taxista viene a recogerla y ella le pide que pase por unos lugares de la capital que han...",
-    "generos": null
+    "generos": [
+      "Comedia",
+      "Drama"
+    ]
   },
   {
     "titulo": "Una batalla tras otra",
@@ -96,7 +128,11 @@
     "calidad": "HD",
     "año": "2025",
     "descripcion": "Cuando su malvado némesis resurge después de 16 años, una banda de ex revolucionarios se reúne para rescatar a la hija de uno de los suyos.",
-    "generos": null
+    "generos": [
+      "Acción",
+      "Crimen",
+      "Suspense"
+    ]
   },
   {
     "titulo": "El último encargo",
@@ -105,6 +141,10 @@
     "calidad": "HD",
     "año": "2025",
     "descripcion": "Una rutinaria recogida de dinero da un giro salvaje cuando dos conductores de furgón blindado, Russell y Travis, son asaltados por una banda a las órdenes de la hábil Zoe, con planes que van mucho...",
-    "generos": null
+    "generos": [
+      "Acción",
+      "Comedia",
+      "Crimen"
+    ]
   }
 ]
